@@ -3,6 +3,8 @@ import requests
 import pandas as pd
 import os
 from dotenv import load_dotenv
+from datetime import datetime
+
 #carga las variables de entorno con los datos de la API
 load_dotenv()
 TOKEN_API = os.getenv("TOKEN_API")
@@ -12,7 +14,10 @@ conexion = os.getenv("conexion")
 
 def extract_movieData():
     datosExtraidos = []
-    for page in range(1, 5):
+    total_results = 0
+    page = 1
+    #Mientras la cantidad de datos extraidos sea menor
+    while len(datosExtraidos) < 150:
         url = f"https://api.themoviedb.org/3/movie/popular?language=en-US&page={page}"
         headers = {
         #Token de acceso
@@ -27,55 +32,109 @@ def extract_movieData():
         #Verifica si la solicitud fue exitosa
         if response.status_code == 200:
             data = response.json()
+            total_results += data.get("total_results",0)
             datosExtraidos.extend(data.get("results",[]))
-            print(datosExtraidos)
+            page += 1
+            if len(data.get("results",[])) == 0:
+                break
         else:
             print(f'Error No se extrajeron los datos: {response.status_code} - {response.text}')
             return None
-    return datosExtraidos[:100]
+    print(datosExtraidos)
+    return datosExtraidos[:150]
 
-def transform_movieData(datosExtraidos):
+#Transforma los datos extraidos
+def transform_movieData(data):
     DatosTransformados =[]
-    for movie in datosExtraidos:
+    for movie in data:
+        
         DatosTransformados.append({
-            "id_pelicula": movie.get("id",None),
-            "titulo": movie.get("title",None),
-            "fecha_lanzamiento":movie.get("release_date",None),
-            "idioma_original":movie.get("original_language",None),
-            "promedio_votos":movie.get("vote_average",None),
-            "recuento_votos":movie.get("vote_count",None),
-            "popularidad":movie.get("popularity",None),
-            "descripcion_general":movie.get("overview",None),
-            "id_genero":movie.get("genre_ids",None)
+            "id_pelicula": movie.get("id"),
+            "titulo": movie.get("title"),
+            "fecha_lanzamiento":datetime.strptime(movie.get("release_date"), "%Y-%m-%d"),#Transforma la fecha a datetime
+            "idioma_original":movie.get("original_language"),
+            "promedio_votos":movie.get("vote_average"),
+            "recuento_votos":movie.get("vote_count"),
+            "popularidad":movie.get("popularity"),
+            "descripcion_general":movie.get("overview"),
+            "id_genero": ','.join(map(str, movie.get("genre_ids", [])))  # Convierte la lista a una cadena
         })
     print(pd.DataFrame(DatosTransformados))
     return DatosTransformados
-datosExtraidos = extract_movieData()
-transform_movieData(datosExtraidos)
 
-# def load_SQLServer(data, cargarDatos = True):
-#     if cargarDatos:
-#         conn = pyodbc.connect(conexion)
-#         if conn is None:
-#             print("Error al conectar a SQL Server")
-#             return
-#         cursor = conn.cursor()
-#         for movie in data:
-#                 cursor.execute("""INSERT INTO movies (
-#                                     id_pelicula, titulo, fecha_lanzamiento, idioma_original, promedio_votos, recuento_votos, popularidad, descripcion_general, id_genero) 
-#                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-#                                     movie["id_pelicula"],
-#                                     movie["titulo"], 
-#                                     movie["fecha_lanzamiento"], 
-#                                     movie["idioma_original"], 
-#                                     movie["promedio_votos"], 
-#                                     movie["recuento_votos"], 
-#                                     movie["popularidad"], 
-#                                     movie["descripcion_general"], 
-#                                     movie["id_genero"])
-#         conn.commit()
-#         conn.close()
+#Carga los datos transformados a la base de datos
+def load_SQLServer(data,tabla_name):
+        try:
+            conn = pyodbc.connect(conexion)
+            cursor = conn.cursor()
+            print("Conexion exitosa")
+        except Exception as e:
+            print(f"Error al conectar a SQL Server: {e}")
+            return
+        duplicados = []
+        noInsertados = []
+#Inserta los datos en la base de datos
+        for movie in data:
+            id_pelicula = movie["id_pelicula"]
+            titulo = movie["titulo"]
+            fecha_lanzamiento = movie["fecha_lanzamiento"]
+            idioma_original = movie["idioma_original"]
+            promedio_votos = movie["promedio_votos"]
+            recuento_votos = movie["recuento_votos"]
+            popularidad = movie["popularidad"]
+            descripcion_general = movie["descripcion_general"]
+            id_genero = movie["id_genero"]
 
-# data = extract_movieData()
-# transform_movieData(data)
-# load_SQLServer(data)
+#Imprime los datos que se van a insertar
+            # print(f"Inserción de película:{type(id_pelicula)}
+
+#Verifica si la pelicula ya existe en la base de datos
+            cursor.execute(f"SELECT * FROM {tabla_name} WHERE id_pelicula = ?", id_pelicula)
+            existe = cursor.fetchone()
+            #Si no existe, se inserta
+            if not existe:
+                try:
+                    cursor.execute(f"""INSERT INTO {tabla_name} (
+                                id_pelicula,
+                                titulo, 
+                                fecha_lanzamiento, 
+                                idioma_original, 
+                                promedio_votos, 
+                                recuento_votos, 
+                                popularidad, 
+                                descripcion_general, 
+                                id_genero) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                id_pelicula,
+                                titulo,
+                                fecha_lanzamiento,
+                                idioma_original,
+                                promedio_votos,
+                                recuento_votos,
+                                popularidad,
+                                descripcion_general,
+                                id_genero)
+                except Exception as e:
+                    print(f"Error al insertar la pelicula: {e}")
+                    noInsertados.append(movie)
+            else:
+                duplicados.append(id_pelicula)
+
+        conn.commit()
+        conn.close()
+
+        if duplicados:
+            print(f"Peliculas duplicadas: {len(duplicados)}")
+        else:
+            noInsertados.append(f"peliculas no insertadas: {len(noInsertados)}")
+            
+#Extrae los datos de la API
+data = extract_movieData()
+#Transforma los datos extraidos
+if data:
+    datosTransformados = transform_movieData(data)
+    #Carga los datos transformados a la base de datos
+    load_SQLServer(datosTransformados,"movies")
+else:
+    print("No se pudo extraer los datos de la API")
+
