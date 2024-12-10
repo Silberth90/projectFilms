@@ -17,21 +17,33 @@ Este proyecto muestra cómo extraer datos de películas desde la **API de The Mo
 
 ## **Descripción General**
 
+se usaron las siguientes librerias:
+
+- pandas
+- requests
+- pyodbc
+- io
+- json
+- datetime
+- tambien se uso variables de entorno para la api key para que no se exponga la api key en el codigo fuente
+  ni otros datos sensibles
+- para la conexion a la base de datos se uso pyodbc
+
 ### **Propósito**
 
-- **Extraer** datos de películas desde la API de TMDB.
-- **Transformar** los datos de popularidad en categorías: Alta, Media y Baja.
-- **Cargar** los datos en SQL Server para su análisis posterior.
+- **Extraer** se extraen los datos de la API de TMDB.
+- **Transformar** se transforman los datos de popularidad en categorías: Alta, Media y Baja.
+- **Cargar** se cargan los datos en SQL Server para su análisis posterior.
 
 ### **Características Principales**
 
-1. Extraer columnas relevantes.
-2. Almacenar los datos crudos en una tabla llamada `movies` en SQL Server.
-3. Clasificar la popularidad de las películas y guardar los resultados en una tabla llamada `movies_popularity`.
+1. se van extrayendo las columnas relevantes para luego;
+2. almacenar los datos crudos en una tabla llamada `movies` en SQL Server;
+3. para finalizar,clasificar las películas según su popularidad y guardar los resultados en una tabla llamada `movies_popularity`.
 
 ---
 
-## **Requisitos Previos**
+## **Los Requisitos Para Ejecutar El Proyecto**
 
 - Python 3.8 o superior.
 - Conexión activa a Internet.
@@ -55,7 +67,8 @@ genre_ids
 
 ## **TABLA DE POPULARIDAD**
 
-REALIZAR CON PYTHON
+la tabla de popularidad se hizo con las siguientes columnas y se realizo con python:
+
 movie_id
 title
 popularity_category valores que deberia tener (BAJA, MEDIA, ALTA)

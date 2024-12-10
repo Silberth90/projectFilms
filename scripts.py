@@ -11,7 +11,7 @@ TOKEN_API = os.getenv("TOKEN_API")
 CLAVE_API = os.getenv("CLAVE_API")
 conexion = os.getenv("conexion")
 
-
+#Extrae los datos de la API
 def extract_movieData():
     datosExtraidos = []
     total_results = 0
@@ -32,23 +32,25 @@ def extract_movieData():
         #Verifica si la solicitud fue exitosa
         if response.status_code == 200:
             data = response.json()
-            total_results += data.get("total_results",0)
-            datosExtraidos.extend(data.get("results",[]))
+            total_results += data.get("total_results",0)   #Suma el total de resultados
+            datosExtraidos.extend(data.get("results",[]))  #Agrega los resultados a la lista
             page += 1
-            if len(data.get("results",[])) == 0:
+            if len(data.get("results",[])) == 0:   #Si no hay resultados, se rompe el bucle
+                break
+            if len(datosExtraidos) >= total_results:
                 break
         else:
-            print(f'Error No se extrajeron los datos: {response.status_code} - {response.text}')
+            print(f'Error No se extrajeron los datos: {response.status_code} - {response.text}') 
             return None
-    print(datosExtraidos)
-    return datosExtraidos[:150]
+    print(len(datosExtraidos))
+    return datosExtraidos[:150]          #Devuelve los primeros 150 datos	
 
 #Transforma los datos extraidos
 def transform_movieData(data):
-    DatosTransformados =[]
+    DatosTransformados =[]               #crea una lista para almacenar los datos transformados
     for movie in data:
         
-        DatosTransformados.append({
+        DatosTransformados.append({         #Agrega los datos transformados a la lista
             "id_pelicula": movie.get("id"),
             "titulo": movie.get("title"),
             "fecha_lanzamiento":datetime.strptime(movie.get("release_date"), "%Y-%m-%d"),#Transforma la fecha a datetime
@@ -64,35 +66,63 @@ def transform_movieData(data):
 
 #Carga los datos transformados a la base de datos
 def load_SQLServer(data,tabla_name):
-        try:
+        try:                                    #se conecta a la base de datos
             conn = pyodbc.connect(conexion)
             cursor = conn.cursor()
             print("Conexion exitosa")
-        except Exception as e:
+        except Exception as e:                   #si hay un error, se imprime y se retorna
             print(f"Error al conectar a SQL Server: {e}")
             return
-        duplicados = []
+        insertados = []
+        actualizados = []
         noInsertados = []
 #Inserta los datos en la base de datos
         for movie in data:
             id_pelicula = movie["id_pelicula"]
-            titulo = movie["titulo"]
-            fecha_lanzamiento = movie["fecha_lanzamiento"]
-            idioma_original = movie["idioma_original"]
-            promedio_votos = movie["promedio_votos"]
-            recuento_votos = movie["recuento_votos"]
-            popularidad = movie["popularidad"]
-            descripcion_general = movie["descripcion_general"]
-            id_genero = movie["id_genero"]
+            titulo = movie.get("titulo")
+            fecha_lanzamiento = movie.get("fecha_lanzamiento")
+            idioma_original = movie.get("idioma_original")
+            promedio_votos = movie.get("promedio_votos")
+            recuento_votos = movie.get("recuento_votos")
+            popularidad = movie.get("popularidad")
+            descripcion_general = movie.get("descripcion_general")
+            id_genero = movie.get("id_genero")
 
 #Imprime los datos que se van a insertar
             # print(f"Inserción de película:{type(id_pelicula)}
 
-#Verifica si la pelicula ya existe en la base de datos
+#verifica si la pelicula ya existe en la base de datos
             cursor.execute(f"SELECT * FROM {tabla_name} WHERE id_pelicula = ?", id_pelicula)
             existe = cursor.fetchone()
-            #Si no existe, se inserta
-            if not existe:
+            #Si existe, se actualiza
+            if existe:                              
+                try:
+                    cursor.execute(f"""UPDATE {tabla_name} SET
+                                titulo = ?, 
+                                fecha_lanzamiento = ?, 
+                                idioma_original = ?, 
+                                promedio_votos = ?, 
+                                recuento_votos = ?, 
+                                popularidad = ?, 
+                                descripcion_general = ?, 
+                                id_genero = ?
+                                WHERE id_pelicula = ?""",
+                                titulo,
+                                fecha_lanzamiento,
+                                idioma_original,
+                                promedio_votos,
+                                recuento_votos,
+                                popularidad,
+                                descripcion_general,
+                                id_genero,
+                                id_pelicula)
+                    actualizados.append(id_pelicula)
+                except Exception as e:                  #si hay un error, se agrega a la lista de no insertados
+                    print(f"Error al insertar la pelicula: {e}")
+                    noInsertados.append(movie)
+
+    #Si no existe, se inserta
+            else:
                 try:
                     cursor.execute(f"""INSERT INTO {tabla_name} (
                                 id_pelicula,
@@ -114,25 +144,31 @@ def load_SQLServer(data,tabla_name):
                                 popularidad,
                                 descripcion_general,
                                 id_genero)
+                    insertados.append(id_pelicula)
                 except Exception as e:
                     print(f"Error al insertar la pelicula: {e}")
                     noInsertados.append(movie)
-            else:
-                duplicados.append(id_pelicula)
 
         conn.commit()
         conn.close()
 
-        if duplicados:
-            print(f"Peliculas duplicadas: {len(duplicados)}")
-        else:
-            noInsertados.append(f"peliculas no insertadas: {len(noInsertados)}")
+        print(f"Peliculas actualizadas {len(actualizados)}")
+        print(f"Peliculas insertadas {len(insertados)}")
+
+
+#Guarda los datos en un archivo csv
+def guardar_csv(data,nombre_archivo):
+    df = pd.DataFrame(data)
+    df.to_csv(nombre_archivo, index=False)
+    print(f"Datos guardados en {nombre_archivo}")
             
 #Extrae los datos de la API
 data = extract_movieData()
 #Transforma los datos extraidos
 if data:
     datosTransformados = transform_movieData(data)
+    #Guarda los datos en un archivo csv
+    guardar_csv(datosTransformados,"datoscargados.csv")
     #Carga los datos transformados a la base de datos
     load_SQLServer(datosTransformados,"movies")
 else:

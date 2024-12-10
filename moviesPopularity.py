@@ -31,3 +31,6 @@ def transform_movieData(data):
 extract_movieData()
 datosTransformados = transform_movieData(data)
 load_SQLServer(datosTransformados,"movies_popularity")
+df = pd.DataFrame(datosTransformados)
+#Guarda los datos en un archivo csv
+df.to_csv("movies_popularity.csv", index=False)
