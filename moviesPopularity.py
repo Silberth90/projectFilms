@@ -5,16 +5,17 @@ from scripts import transform_movieData, load_SQLServer,extract_movieData,data
 #Transforma la popularidad de las peliculas
 def transform_movieData(data):
     DatosTransformados =[]
-    for movie in data:
+    for movie in data:                #Recorre cada pelicula en la lista de peliculas
         max_popularidad = 100
-        normalizacion_popularidad = (movie.get("popularity") / max_popularidad) * 10
-        if normalizacion_popularidad > 80.0:
-            categoria_popularidad = "ALTA"
-        elif normalizacion_popularidad >= 40.0:
-            categoria_popularidad = "MEDIA"
+        popularidad = (movie.get("popularity") / max_popularidad) * 10  
+        if popularidad > 80.0:          #Si es mayor a 80 es ALTA
+            catPopularidad = "ALTA"
+        elif popularidad >= 40.0:       #Si es mayor o igual a 40 es MEDIA
+            catPopularidad = "MEDIA"
         else:
-            categoria_popularidad = "BAJA"
+            catPopularidad = "BAJA"     #Si es menor a 40 es BAJA
 
+#Agrega los datos transformados a la lista de datos transformados
         DatosTransformados.append({
             "id_pelicula": movie.get("id"),
             "titulo": movie.get("title"),
@@ -28,9 +29,9 @@ def transform_movieData(data):
         })
     print(pd.DataFrame(DatosTransformados))
     return DatosTransformados
-extract_movieData()
-datosTransformados = transform_movieData(data)
-load_SQLServer(datosTransformados,"movies_popularity")
-df = pd.DataFrame(datosTransformados)
-#Guarda los datos en un archivo csv
-df.to_csv("movies_popularity.csv", index=False)
+extract_movieData()                                                  #Extrae los datos de la API
+datosTransformados = transform_movieData(data)                       #Transforma los datos
+load_SQLServer(datosTransformados,"movies_popularity")               #Carga los datos en la base de datos
+df = pd.DataFrame(datosTransformados)                                #Crea un dataframe con los datos transformados
+df.to_csv("movies_popularity.csv", index=False)                      #Guarda los datos en un archivo csv
+

@@ -32,7 +32,7 @@ se usaron las siguientes librerias:
 ### **Propósito**
 
 - **Extraer** se extraen los datos de la API de TMDB.
-- **Transformar**los datos de popularidad en categorías: Alta, Media y Baja.
+- **Transformar** los datos de popularidad en categorías: Alta, Media y Baja.
 - **Cargar** los datos en SQL Server para su análisis posterior.
 
 ### **Características Principales**
