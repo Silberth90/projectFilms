@@ -6,8 +6,7 @@ from scripts import transform_movieData, load_SQLServer,extract_movieData,data
 def transform_movieData(data):
     DatosTransformados =[]
     for movie in data:                #Recorre cada pelicula en la lista de peliculas
-        max_popularidad = 100
-        popularidad = (movie.get("popularity") / max_popularidad) * 10  
+        popularidad = (movie.get("popularity") / 100) * 10  
         if popularidad > 80.0:          #Si es mayor a 80 es ALTA
             catPopularidad = "ALTA"
         elif popularidad >= 40.0:       #Si es mayor o igual a 40 es MEDIA
@@ -23,7 +22,7 @@ def transform_movieData(data):
             "idioma_original":movie.get("original_language"),
             "promedio_votos":float(movie.get("vote_average")),
             "recuento_votos":movie.get("vote_count"),
-            "popularidad":categoria_popularidad,
+            "popularidad":catPopularidad,
             "descripcion_general":movie.get("overview"),
             "id_genero": ','.join(map(str, movie.get("genre_ids", [])))  # Convierte la lista a una cadena
         })

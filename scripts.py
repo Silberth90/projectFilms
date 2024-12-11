@@ -159,7 +159,7 @@ def load_SQLServer(data,tabla_name):
 #Guarda los datos en un archivo csv
 def guardar_csv(data,nombre_archivo):
     df = pd.DataFrame(data)
-    df.to_csv(nombre_archivo, index=False)
+    df.to_csv(nombre_archivo)        
     print(f"Datos guardados en {nombre_archivo}")
             
 #Extrae los datos de la API
